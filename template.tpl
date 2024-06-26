@@ -16,10 +16,9 @@ ___INFO___
   "displayName": "Billy Grace - Configuration Web Pixel",
   "categories": [
     "ADVERTISING",
-    "ANALYTICS",
-    "CONVERSIONS",
+    "ATTRIBUTION",
     "MARKETING",
-    "REMARKETING"
+    "ANALYTICS",
   ],
   "brand": {
     "id": "billygrace",
@@ -162,7 +161,7 @@ function successfullyInjectedScript(){
   }
   
   // Finish with the success handler to close this function
-  data.gtmOnSuccess();
+  return data.gtmOnSuccess();
 }
 
 
