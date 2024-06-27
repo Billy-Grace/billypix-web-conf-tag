@@ -1,9 +1,9 @@
 # Billy Grace - Configuration Web Pixel
 
-BillyPix configuration tag that needs to run before any event can be send with the [Billy Grace - Web Event](https://www.billygrace.com).
+This is the repository for the BillyPix Configuration Tag that needs to run before any event can be send with the [Billy Grace - Web Event Tag](https://github.com/Billy-Grace/billypix-web-event-tag).
 
 
 
 ## Open Source
 
-BillyPix Web Configuration Tag is developing and maintained by [Billy Grace](https://www.billygrace.com) under the Apache 2.0 license.
+The BillyPix Web Configuration Tag is developed and maintained by [Billy Grace](https://www.billygrace.com) under the Apache 2.0 license.
