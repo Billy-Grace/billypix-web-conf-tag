@@ -1,6 +1,6 @@
-# BillyPix - Configuration Web Pixel 
+# BillyPix Web Configuration Tag 
 
-This is the repository for the BillyPix Configuration Tag that needs to run before any event can be send with the [Billy Grace - Web Event Tag](https://github.com/Billy-Grace/billypix-web-event-tag).
+This is the repository for the BillyPix Web Configuration Tag that needs to run before any event can be send with the [Billy Grace - Web Event Tag](https://github.com/Billy-Grace/billypix-web-event-tag).
 
 
 
