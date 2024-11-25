@@ -112,11 +112,19 @@ const injectScript = require('injectScript');
 const getTimestamp = require('getTimestamp');
 const Math = require('Math');
 const getType = require('getType');
+const getContainerVersion = require('getContainerVersion');
 
 // Unique identifier for BillyPix, replace 'ID-XXXXXXXX' with actual ID
 const billyPixId = data.trackingID;
 const cdnEndpoint = data.useStaging ? 'https://staging.bgmin.cdn.billygrace.com' : 'https://bgmin.cdn.billygrace.com';
 const billyFunctionName = data.useStaging ? 'StagBillyPix' : 'BillyPix';
+
+// Determine if live debugging needs to be turned on
+const cv = getContainerVersion();
+
+// Difference preview and debug: https://support.google.com/tagmanager/answer/6107056
+// TLDR: Both are set to true when you are debugging your container
+const isGtmDebugSession = cv.debugMode && cv.previewMode;
 
 // Tracking ID needs to be set
 if (getType(billyPixId) === 'undefined') {
@@ -142,7 +150,7 @@ if (data.isDebug){
 
 function successfullyInjectedScript(){
   // Initialize BillyPix so the Tracking ID is set on the web page
-  BillyPix('init', billyPixId);
+  BillyPix('init', billyPixId, {debug: isGtmDebugSession});
   
   // Debug to see if correct
   if (data.isDebug){
@@ -476,6 +484,16 @@ ___WEB_PERMISSIONS___
     },
     "clientAnnotations": {
       "isEditedByUser": true
+    },
+    "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "read_container_data",
+        "versionId": "1"
+      },
+      "param": []
     },
     "isRequired": true
   }
