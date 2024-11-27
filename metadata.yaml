@@ -1,5 +1,10 @@
 homepage: "https://www.billygrace.com"
 documentation: "https://help.billygrace.com/en/"
 versions:
+  - sha: f2e0f20ec1eb6ad51280f3010334c87228603196
+    changeNotes: |2
+      * Using the build in getContainerVersion to retrieve container state
+        - Used to determine if the preview mode with debugger is turned on
+      * When this happens the backend will not process the data and make it available in our own live debugger
   - sha: d440ea8bf05c6393748748e682216ee2f209996c
     changeNotes: Initial release
