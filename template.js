@@ -79,13 +79,12 @@ function addMainFunctionToWindow() {
     
     // If process method exists and is a function, pass arguments to it
     if (pixelFunc && typeof pixelFunc.process === 'function') {
-      debugLog('Processing command: ' + (args[0] || '') + ' with arguments: ' + JSON.stringify(args.slice(1) || []));
-
+     debugLog('Processing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[3] || {}) + ')');
       // Call process safely using call instead of apply
       return pixelFunc.process(args[0], args[1], args[2]);
     } else {
       // Process isn't available yet, queue the command for later execution
-      debugLog('Queueing command: ' + (args[0] || '') + ' with arguments: ' + JSON.stringify(args.slice(1) || []));
+      debugLog('Queueing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[3] || {}) + ')');
       
       // Get the queue and push to it
       const queue = copyFromWindow(billyFunctionName + '.queue');
@@ -96,7 +95,7 @@ function addMainFunctionToWindow() {
       } else {
         // If queue isn't available, initialize it first
         setInWindow(billyFunctionName + '.queue', [args], true);
-        log('Created new queue with first event');
+        debugLog('Created new queue with first event');
       }
     }
   };
