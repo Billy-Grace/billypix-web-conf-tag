@@ -12,11 +12,10 @@ const getContainerVersion = require('getContainerVersion');
 const queryPermission = require('queryPermission');
 
 /**
- * Billy Grace Pixel GTM Template
+ * Billy Grace - Configuration Web Pixel Template
  * 
- * This template implements the Billy Grace tracking pixel for Google Tag Manager.
- * It handles initialization, script loading, and event tracking in accordance
- * with the original implementation.
+ * This handles initialization, script loading, and the event tracking code
+ * in accordance with the original implementation.
  */
 
 // Unique identifier for BillyPix
