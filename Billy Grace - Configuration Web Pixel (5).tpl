@@ -124,7 +124,7 @@ const queryPermission = require('queryPermission');
  * in accordance with the original implementation.
  */
 
-// Unique identifier for BillyPix
+// Unique identifier for the client's account
 const billyPixId = data.trackingID;
 const cdnEndpoint = data.useStaging ? 'https://staging.bgmin.cdn.billygrace.com' : 'https://bgmin.cdn.billygrace.com';
 const billyFunctionName = data.useStaging ? 'StagBillyPix' : 'BillyPix';
@@ -170,7 +170,7 @@ if (!queryPermission('inject_script', scriptUrl)) {
 function addMainFunctionToWindow() {
   debugLog(billyFunctionName + ' not found, initializing...');
   
-  // Create the BillyPix function with safer implementation
+  // Main function that gets triggered on each call to it
   const pixelFunction = function() {
     
     // Store arguments for easier access
