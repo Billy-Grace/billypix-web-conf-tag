@@ -1,6 +1,10 @@
 homepage: "https://www.billygrace.com"
 documentation: "https://help.billygrace.com/en/"
 versions:
+  - sha: 06b0d5d1a8ac63a1ec7f7177f75a2be308fa3c75
+    changeNotes: |2
+      * Fixes the issue that if you could have an issue with the BillyPix object if the timing was off
+      * Cleanup of the code and trying to more closely match logic of original pixel snippet
   - sha: f2e0f20ec1eb6ad51280f3010334c87228603196
     changeNotes: |2
       * Using the build in getContainerVersion to retrieve container state
