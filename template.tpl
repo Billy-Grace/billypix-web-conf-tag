@@ -64,10 +64,10 @@ ___TEMPLATE_PARAMETERS___
       {
         "type": "CHECKBOX",
         "name": "isDebug",
-        "checkboxText": "Debug mode",
+        "checkboxText": "Verbose logging mode",
         "simpleValueType": true,
         "defaultValue": false,
-        "help": "Will output log statements"
+        "help": "Will output multiple log statements during the tag\u0027s live time. Only use this when you are still debugging the tag"
       },
       {
         "type": "CHECKBOX",
@@ -75,6 +75,44 @@ ___TEMPLATE_PARAMETERS___
         "checkboxText": "Use staging",
         "simpleValueType": true,
         "help": "Only check this box when explicitly required by Billy Grace staff"
+      },
+      {
+        "type": "CHECKBOX",
+        "name": "overrideCookieDomainBool",
+        "checkboxText": "Use a different cookie domain",
+        "simpleValueType": true,
+        "defaultValue": false,
+        "help": "When enabled, you need to insert the custom cookie domain"
+      },
+      {
+        "type": "TEXT",
+        "name": "overrideCookiedomain",
+        "displayName": "Custom cookie domain",
+        "simpleValueType": true,
+        "help": "This needs to a parent of the current (sub) domain. Any other domain variant (like a sibling domain or different domain) is not allowed. \nE.g. if your domain is https://shop.mywebsite.example.com, then the allowed options can only be: mywebsite.example.com or example.com. \n\nThe default implementation will still run, when an invalid domain is supplied; which is the current domain (shop.mywebsite.example.com in the example given). \n\nFurthermore, this setting can be used when you use are not using SST, so only a gtm web setup.",
+        "valueValidators": [
+          {
+            "type": "STRING_LENGTH",
+            "args": [
+              3,
+              253
+            ]
+          },
+          {
+            "type": "REGEX",
+            "args": [
+              "^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"
+            ],
+            "errorMessage": "Should be a clean domain with no paths and no www., for example: shop.example.com, example.co.uk, example.com"
+          }
+        ],
+        "enablingConditions": [
+          {
+            "paramName": "overrideCookieDomainBool",
+            "paramValue": true,
+            "type": "EQUALS"
+          }
+        ]
       },
       {
         "type": "CHECKBOX",
@@ -184,12 +222,12 @@ function addMainFunctionToWindow() {
     
     // If process method exists and is a function, pass arguments to it
     if (pixelFunc && typeof pixelFunc.process === 'function') {
-     debugLog('Processing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[3] || {}) + ')');
+     debugLog('Processing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[2] || {}) + ')');
       // Call process safely using call instead of apply
       return pixelFunc.process(args[0], args[1], args[2]);
     } else {
       // Process isn't available yet, queue the command for later execution
-      debugLog('Queueing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[3] || {}) + ')');
+      debugLog('Queueing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[2] || {}) + ')');
       
       // Get the queue and push to it
       const queue = copyFromWindow(billyFunctionName + '.queue');
@@ -236,10 +274,17 @@ function onScriptLoaded() {
     log('Error: ' + billyFunctionName + ' not found after script load');
     return data.gtmOnFailure();
   }
+  
+  // Extra options for this pixel session
+  let extraInitOptions = {debug: isGtmDebugSession};
+    
+  // Optionally check the cookie domain needs to be overwritten
+  if (getType(data.overrideCookiedomain) !== 'undefined') {
+    extraInitOptions.cookie_domain = data.overrideCookiedomain;
+  }
 
   // Initialize BillyPix with the tracking ID
-  BillyPix('init', billyPixId, {debug: isGtmDebugSession});
-  debugLog('Successfully initialized the ' + billyFunctionName + ' for ID: ' + billyPixId);
+  BillyPix('init', billyPixId, extraInitOptions);
   
   // By default unchecked, meaning we send out the pageload event
   if (data.noPageloadEvent === false){
