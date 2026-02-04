@@ -78,12 +78,12 @@ function addMainFunctionToWindow() {
     
     // If process method exists and is a function, pass arguments to it
     if (pixelFunc && typeof pixelFunc.process === 'function') {
-     debugLog('Processing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[3] || {}) + ')');
+     debugLog('Processing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[2] || {}) + ')');
       // Call process safely using call instead of apply
       return pixelFunc.process(args[0], args[1], args[2]);
     } else {
       // Process isn't available yet, queue the command for later execution
-      debugLog('Queueing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[3] || {}) + ')');
+      debugLog('Queueing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[2] || {}) + ')');
       
       // Get the queue and push to it
       const queue = copyFromWindow(billyFunctionName + '.queue');
@@ -130,10 +130,17 @@ function onScriptLoaded() {
     log('Error: ' + billyFunctionName + ' not found after script load');
     return data.gtmOnFailure();
   }
+  
+  // Extra options for this pixel session
+  let extraInitOptions = {debug: isGtmDebugSession};
+    
+  // Optionally check the cookie domain needs to be overwritten
+  if (getType(data.overrideCookiedomain) !== 'undefined') {
+    extraInitOptions.cookie_domain = data.overrideCookiedomain;
+  }
 
   // Initialize BillyPix with the tracking ID
-  BillyPix('init', billyPixId, {debug: isGtmDebugSession});
-  debugLog('Successfully initialized the ' + billyFunctionName + ' for ID: ' + billyPixId);
+  BillyPix('init', billyPixId, extraInitOptions);
   
   // By default unchecked, meaning we send out the pageload event
   if (data.noPageloadEvent === false){
