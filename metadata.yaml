@@ -1,6 +1,10 @@
 homepage: "https://www.billygrace.com"
 documentation: "https://help.billygrace.com/en/"
 versions:
+  - sha: 40268ccaa6ba2c37deb43179ed438dadacff787f
+    changeNotes: |2
+      * Changed "Debug mode" to "Verbose logging mode" to avoid confusion with the live debugger (which is something else)
+      * Updated the tag to also support the option for the cookie domain to be changed to any parent (sub) domain
   - sha: 06b0d5d1a8ac63a1ec7f7177f75a2be308fa3c75
     changeNotes: |2
       * Fixes the issue that if you could have an issue with the BillyPix object if the timing was off
