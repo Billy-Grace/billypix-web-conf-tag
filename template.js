@@ -1,65 +1,147 @@
 // GTM API functions required
 const log = require('logToConsole');
-const JSON = require('JSON');
+const copyFromWindow = require('copyFromWindow');
+const getType = require('getType');
+const Object = require('Object');
 const setInWindow = require('setInWindow');
-const createQueue = require('createQueue');
 const getTimestamp = require('getTimestamp');
 const Math = require('Math');
 const injectScript = require('injectScript');
-const copyFromWindow = require('copyFromWindow');
-const getType = require('getType');
+const JSON = require('JSON');
 const getContainerVersion = require('getContainerVersion');
 const queryPermission = require('queryPermission');
 
 /**
- * Billy Grace - Configuration Web Pixel Template
- * 
- * This handles initialization, script loading, and the event tracking code
- * in accordance with the original implementation.
+ * Billy Grace Event Tag for GTM
+ * It requires the Billy Grace Configuration tag to be run first.
  */
 
-// Unique identifier for the client's account
+// Unique identifier for BillyPix, replace 'ID-XXXXXXXX' with actual ID
 const billyPixId = data.trackingID;
-const cdnEndpoint = data.useStaging ? 'https://staging.bgmin.cdn.billygrace.com' : 'https://bgmin.cdn.billygrace.com';
 const billyFunctionName = data.useStaging ? 'StagBillyPix' : 'BillyPix';
 
-// Calculate cache busting value
-const secondsBuste = 30*1000; // 6 hours in milliseconds
-const epochRounded = secondsBuste * Math.ceil(getTimestamp() / secondsBuste);
-const scriptUrl = cdnEndpoint + '?t=' + epochRounded + '&v=0.2.0';
-
-// Determine if live debugging needs to be turned on
-const cv = getContainerVersion();
-
-// Difference preview and debug: https://support.google.com/tagmanager/answer/6107056
-// TLDR: Both are set to true when you are debugging your container
-const isGtmDebugSession = cv.debugMode && cv.previewMode;
-
-
-// Optionally log messages when debug is enabled
+// Conditional logging based on boolean set by implementer
 function debugLog(message) {
   if (data.isDebug) {
-    log('[BG Conf Tag]', message);
+    log('[BG Event Tag]', message);
   }
 }
 
-// Tracking ID needs to be set
-if (getType(billyPixId) === 'undefined') {
-  log('Error: Billy Grace Pixel not configured correctly. No Tracking ID is set.');
+/**
+ * Determines the event name based on user configuration
+ * @param {Object} data - The GTM tag data object
+ * @return {String} The resolved event name
+ */
+const getEventName = (data) => {
+  // Also send unknown names, as this indicates something is wrong
+  let eventName = 'unknown';
+  
+  // Standard events from dropdown
+  if (data.eventName === 'standard' && data.standardEventName) eventName = data.standardEventName;    
+
+  // Custom event name typed out by user
+  if (data.eventName === 'custom' && data.customEventName) eventName = data.customEventName;    
+  
+  // GTM Variabe as event name
+  if (data.eventName === 'variable' && data.variableEventName) eventName = data.variableEventName;    
+  
+  return eventName;
+};
+
+/**
+ * Collects all event parameters 
+ * @param {Object} data - The GTM tag data object
+ * @return {Object|String} The event parameters or empty string if none
+ */
+const getEventData = (data) => {
+  // Store extra event data
+  let customEventData = {};
+  
+  // If any extra custom parameters are set
+  if (data.extraEventParameters){
+    // If set, make sure to set in right format
+    for (let extraDataItem of data.extraEventParameters) {
+      customEventData[extraDataItem.eventParameterName] = extraDataItem.eventParameterValue;
+    }
+  }
+  
+  // If any of the values are set, then override anything we currently have
+  if (data.transaction_id) customEventData.transaction_id = data.transaction_id;
+  if (data.value) customEventData.value = data.value;
+  if (data.currency) customEventData.currency = data.currency;
+  
+  // Used for de-duplication
+  if (data.eventID) customEventData.event_id = data.eventID;
+  
+  // Just an empty string so no object parsing will happen on receival
+  if (Object.keys(customEventData).length === 0){
+     return '';
+  }
+  
+  // Prepare data to be send out
+  return customEventData;
+};
+
+// Grab all required data needed for this event
+const eventName = getEventName(data);
+const eventData = getEventData(data);
+
+// Sanity check: Fail if no event name is set
+if (eventName === 'unknown') {
+  log('[BG Event Tag] Error: No event name is set. Please select a standard event, set a custom event name, or use a variable.');
   return data.gtmOnFailure();
 }
 
-// Check permission to inject the script
-if (!queryPermission('inject_script', scriptUrl)) {
-  log('Error: Permission denied to inject Billy Grace Pixel script from', scriptUrl);
-  data.gtmOnFailure();
-  return;
+/**
+ * Checks if the Billy Grace tracking function is properly set up in the window
+ * @return {Boolean} True if BillyPix is available and valid
+ */
+function isBillyPixValid() {
+  const BillyPixFunction = copyFromWindow(billyFunctionName);
+  const existingQueue = copyFromWindow(billyFunctionName + '.queue');
+
+  // BillyPix should exist, be a function, and have an array queue
+  return BillyPixFunction && 
+         (getType(BillyPixFunction) === 'function') && 
+         (getType(existingQueue) === 'array');
+}
+
+
+/**
+ * Callback function called after script is loaded
+ * Initializes the tracking and sends the event
+ */
+function onScriptLoadedAndFireEvent() {
+  // Get the function again to ensure we have latest reference
+  const BillyPix = copyFromWindow(billyFunctionName);
+
+  if (!BillyPix) {
+    log('[BG Event Tag] Error: ' + billyFunctionName + ' not found after script load');
+    return data.gtmOnFailure();
+  }
+
+  // Determine if live debugging needs to be turned on
+  const cv = getContainerVersion();
+
+  // Difference preview and debug: https://support.google.com/tagmanager/answer/6107056
+  // TLDR: Both are set to true when you are debugging your container
+  const isGtmDebugSession = cv.debugMode && cv.previewMode;
+  
+  // Initialize BillyPix with the tracking ID
+  BillyPix('init', billyPixId, {debug: isGtmDebugSession});
+  debugLog('Successfully initialized the ' + billyFunctionName + ' for ID: ' + billyPixId);
+
+  // Fire the event
+  BillyPix('event', eventName, eventData);
+  
+  // Complete the tag
+  return data.gtmOnSuccess();
 }
 
 
 /**
  * Adds the main tracking function to the window
- * This function replicates the behavior of the original Billy Grace snippet
+ * Only called if the function doesn't already exist (backup functionality)
  */
 function addMainFunctionToWindow() {
   debugLog(billyFunctionName + ' not found, initializing...');
@@ -78,7 +160,8 @@ function addMainFunctionToWindow() {
     
     // If process method exists and is a function, pass arguments to it
     if (pixelFunc && typeof pixelFunc.process === 'function') {
-     debugLog('Processing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[2] || {}) + ')');
+      debugLog('Processing ' + billyFunctionName + '("' + args[0] + '", "' + args[1] + '", ' +JSON.stringify(args[2] || {}) + ')');
+      
       // Call process safely using call instead of apply
       return pixelFunc.process(args[0], args[1], args[2]);
     } else {
@@ -88,10 +171,14 @@ function addMainFunctionToWindow() {
       // Get the queue and push to it
       const queue = copyFromWindow(billyFunctionName + '.queue');
       
-      // Add to queu for later processing when remote js arrives
+      // Add to queue for later processing when remote js arrives
       if (queue && getType(queue) === 'array') {
         queue.push(args);
+
+        // Need to overwrite the queue with the new one as its just a copy of the original
+        setInWindow(billyFunctionName + '.queue', queue, true);
       } else {
+        
         // If queue isn't available, initialize it first
         setInWindow(billyFunctionName + '.queue', [args], true);
         debugLog('Created new queue with first event');
@@ -107,66 +194,42 @@ function addMainFunctionToWindow() {
   
   // Set the timestamp
   setInWindow(billyFunctionName + '.t', getTimestamp(), true);
-  
 }
 
-// Check if BillyPix already exists - same as original snippet's first check
-const existingFunc = copyFromWindow(billyFunctionName);
-if (!existingFunc) {
-  addMainFunctionToWindow();
-} else {
-  debugLog(billyFunctionName + ' already exists in window, using existing implementation');
-}
 
-/**
- * Callback function when script is successfully loaded
- * Initializes the pixel and triggers page view if configured
- */
-function onScriptLoaded() {
-  // Get the function again to ensure we have latest reference
-  const BillyPix = copyFromWindow(billyFunctionName);
-
-  if (!BillyPix) {
-    log('Error: ' + billyFunctionName + ' not found after script load');
-    return data.gtmOnFailure();
-  }
+// Sanity check: BillyPix needs to be available
+if (isBillyPixValid()) {
+    // BillyPix is already available and valid - just fire the event
+    debugLog('BillyPix reference exists in window');
   
-  // Extra options for this pixel session
-  let extraInitOptions = {debug: isGtmDebugSession};
+    // Grab the existing function
+    const BillyPix = copyFromWindow(billyFunctionName);
+
+    // Fire the event
+    BillyPix('event', eventName, eventData);
     
-  // Optionally check the cookie domain needs to be overwritten
-  if (getType(data.overrideCookiedomain) !== 'undefined') {
-    extraInitOptions.cookie_domain = data.overrideCookiedomain;
-  }
+    // Complete the tag
+    data.gtmOnSuccess();
+}else{
+    // Make it clear they the user messed up
+    log('[BG Event Tag] Warning: ' + billyFunctionName + ' not available in window, make sure to first run the "Billy Grace - Web Configuration" tag. For now we are still loading it, but this can lead to performance issued');
 
-  // Initialize BillyPix with the tracking ID
-  BillyPix('init', billyPixId, extraInitOptions);
-  
-  // By default unchecked, meaning we send out the pageload event
-  if (data.noPageloadEvent === false){
-     
-    // Event id is used for de-duplication
-    if (data.pageloadEventID){
-       BillyPix('event', 'pageload', {event_id: data.pageloadEventID});
-    }else{
-       BillyPix('event', 'pageload');
+    // The backup functionality to add the BillyPix object if the sequencing was off
+    // Can be added to the window before loading the js bundle
+    addMainFunctionToWindow();
+
+    // Calculate cache busting value
+    const secondsBuste = 30*1000; // 6 hours in milliseconds
+    const epochRounded = secondsBuste * Math.ceil(getTimestamp() / secondsBuste);
+    const cdnEndpoint = data.useStaging ? 'https://staging.bgmin.cdn.billygrace.com' : 'https://bgmin.cdn.billygrace.com';
+    const scriptUrl = cdnEndpoint + '?t=' + epochRounded + '&v=0.2.0';
+
+    // Check permissions for script injection
+    if (!queryPermission('inject_script', scriptUrl)) {
+      log('[BG Event Tag] Error: Permission denied to inject script from ' + scriptUrl);
+      return data.gtmOnFailure();
     }
-  }
-  
-  // Finish with the success handler to close this function
-  return data.gtmOnSuccess();
+
+    // Inject the BillyPix script
+    injectScript(scriptUrl, onScriptLoadedAndFireEvent, data.gtmOnFailure, scriptUrl);  
 }
-
-/**
- * Callback function when script fails to load
- */
-function onScriptFailed() {
-  log('Error: Billy Grace Pixel script failed to load from ' + scriptUrl);
-  return data.gtmOnFailure();
-}
-
-// Log script loading
-debugLog('Loading script from: ' + scriptUrl);
-
-// Inject the script
-injectScript(scriptUrl, onScriptLoaded, onScriptFailed, scriptUrl);
