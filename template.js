@@ -163,7 +163,7 @@ else {
     // Need to overwrite the queue with the new one as its just a copy of the original
     setInWindow(billyFunctionName + '.queue', currentQueue, true);
   }else{
-    debugLog('Queu does not exist, something went wrong');
+    debugLog('Queue does not exist, something went wrong');
   }
 }
 
