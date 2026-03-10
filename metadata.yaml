@@ -1,6 +1,9 @@
 homepage: "https://www.billygrace.com"
 documentation: "https://help.billygrace.com/en/"
 versions:
+  - sha: bad170dbc91873667b02fe20b6304ac6d71313c3
+    changeNotes: |2
+      * Re-ordered main logic to account for sequencing issues
   - sha: 40268ccaa6ba2c37deb43179ed438dadacff787f
     changeNotes: |2
       * Changed "Debug mode" to "Verbose logging mode" to avoid confusion with the live debugger (which is something else)
