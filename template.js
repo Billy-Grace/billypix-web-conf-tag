@@ -2,10 +2,10 @@
 const log = require('logToConsole');
 const JSON = require('JSON');
 const setInWindow = require('setInWindow');
-const createQueue = require('createQueue');
 const getTimestamp = require('getTimestamp');
 const Math = require('Math');
 const injectScript = require('injectScript');
+const callInWindow = require('callInWindow');
 const copyFromWindow = require('copyFromWindow');
 const getType = require('getType');
 const getContainerVersion = require('getContainerVersion');
@@ -42,18 +42,22 @@ function debugLog(message) {
     log('[BG Conf Tag]', message);
   }
 }
+// For all error messages the end user should see
+function errorLog(message) {
+   log('[BG Conf Tag] Error:', message);
+}
+
 
 // Tracking ID needs to be set
 if (getType(billyPixId) === 'undefined') {
-  log('Error: Billy Grace Pixel not configured correctly. No Tracking ID is set.');
+  errorLog('Billy Grace Pixel not configured correctly. No Tracking ID is set.');
   return data.gtmOnFailure();
 }
 
 // Check permission to inject the script
 if (!queryPermission('inject_script', scriptUrl)) {
-  log('Error: Permission denied to inject Billy Grace Pixel script from', scriptUrl);
-  data.gtmOnFailure();
-  return;
+  errorLog('Permission denied to inject Billy Grace Pixel script from: ' + scriptUrl);
+  return data.gtmOnFailure();
 }
 
 
@@ -91,6 +95,9 @@ function addMainFunctionToWindow() {
       // Add to queu for later processing when remote js arrives
       if (queue && getType(queue) === 'array') {
         queue.push(args);
+
+        // Need to overwrite the queue with the new one as its just a copy of the original
+        setInWindow(billyFunctionName + '.queue', queue, true);
       } else {
         // If queue isn't available, initialize it first
         setInWindow(billyFunctionName + '.queue', [args], true);
@@ -110,7 +117,17 @@ function addMainFunctionToWindow() {
   
 }
 
-// Check if BillyPix already exists - same as original snippet's first check
+function onScriptLoaded() {
+  debugLog('Script loaded successfully');
+  return data.gtmOnSuccess();
+}
+
+function onScriptFailed() {
+  debugLog('Error: Billy Grace Pixel script failed to load from ' + scriptUrl, true);
+  return data.gtmOnFailure();
+}
+
+// Check if BillyPix already exists, mimics the original snippet's first check
 const existingFunc = copyFromWindow(billyFunctionName);
 if (!existingFunc) {
   addMainFunctionToWindow();
@@ -118,55 +135,63 @@ if (!existingFunc) {
   debugLog(billyFunctionName + ' already exists in window, using existing implementation');
 }
 
-/**
- * Callback function when script is successfully loaded
- * Initializes the pixel and triggers page view if configured
- */
-function onScriptLoaded() {
-  // Get the function again to ensure we have latest reference
-  const BillyPix = copyFromWindow(billyFunctionName);
+// Build init options
+let extraInitOptions = {debug: isGtmDebugSession};
+if (getType(data.overrideCookiedomain) !== 'undefined') {
+  extraInitOptions.cookie_domain = data.overrideCookiedomain;
+}
 
-  if (!BillyPix) {
-    log('Error: ' + billyFunctionName + ' not found after script load');
-    return data.gtmOnFailure();
-  }
-  
-  // Extra options for this pixel session
-  let extraInitOptions = {debug: isGtmDebugSession};
-    
-  // Optionally check the cookie domain needs to be overwritten
-  if (getType(data.overrideCookiedomain) !== 'undefined') {
-    extraInitOptions.cookie_domain = data.overrideCookiedomain;
-  }
+// Check if the CDN bundle is already loaded (e.g. by the event tag)
+const processFunc = copyFromWindow(billyFunctionName + '.process');
 
-  // Initialize BillyPix with the tracking ID
-  BillyPix('init', billyPixId, extraInitOptions);
+
+// CDN already loaded: call .process directly, bypassing the stub
+if (processFunc && getType(processFunc) === 'function') {
+  debugLog('CDN already loaded, calling .process directly');
   
-  // By default unchecked, meaning we send out the pageload event
-  if (data.noPageloadEvent === false){
-     
-    // Event id is used for de-duplication
-    if (data.pageloadEventID){
-       BillyPix('event', 'pageload', {event_id: data.pageloadEventID});
-    }else{
-       BillyPix('event', 'pageload');
+  // Setup the initialiazation with any given extra options
+  callInWindow(billyFunctionName + '.process', 'init', billyPixId, extraInitOptions);
+
+  // Make sure the pageload event gets triggered 
+  if (data.noPageloadEvent === false) {
+    if (data.pageloadEventID) {
+      callInWindow(billyFunctionName + '.process', 'event', 'pageload', {event_id: data.pageloadEventID});
+    } else {
+      callInWindow(billyFunctionName + '.process', 'event', 'pageload');
     }
   }
-  
-  // Finish with the success handler to close this function
+
+  // Complete the tag as required events have been fired directly at .process 
   return data.gtmOnSuccess();
+} 
+// CDN not loaded yet: write events directly into the queue
+else {
+
+  // Grab a copy (non reference) from an existing queue object to add to 
+  const currentQueue = copyFromWindow(billyFunctionName + '.queue');
+  
+  if (currentQueue && getType(currentQueue) === 'array') {
+    debugLog('CDN not loaded yet, writing events to queue');
+
+    // Add init and initial pageload event to the queue (if required)
+    currentQueue.push(['init', billyPixId, extraInitOptions]);
+    
+    // Make sure the pageload event gets triggered 
+    if (data.noPageloadEvent === false) {
+      if (data.pageloadEventID) {
+        currentQueue.push(['event', 'pageload', {event_id: data.pageloadEventID}]);
+      } else {
+        currentQueue.push(['event', 'pageload']);
+      }
+    }
+
+    // Need to overwrite the queue with the new one as its just a copy of the original
+    setInWindow(billyFunctionName + '.queue', currentQueue, true);
+  }else{
+    errorLog('Queue does not exist so can\'t add "pageload" event to queue..');
+  }
+
+  // Load the script into the website and complete the tag when its loaded
+  debugLog('Loading script from: ' + scriptUrl);
+  injectScript(scriptUrl, onScriptLoaded, onScriptFailed, scriptUrl);
 }
-
-/**
- * Callback function when script fails to load
- */
-function onScriptFailed() {
-  log('Error: Billy Grace Pixel script failed to load from ' + scriptUrl);
-  return data.gtmOnFailure();
-}
-
-// Log script loading
-debugLog('Loading script from: ' + scriptUrl);
-
-// Inject the script
-injectScript(scriptUrl, onScriptLoaded, onScriptFailed, scriptUrl);
