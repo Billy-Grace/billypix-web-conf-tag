@@ -44,7 +44,7 @@ function debugLog(message) {
 }
 // For all error messages the end user should see
 function errorLog(message) {
-   log('[BG Conf Tag] Error: ', message);
+   log('[BG Conf Tag] Error:', message);
 }
 
 
