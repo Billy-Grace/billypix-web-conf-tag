@@ -123,7 +123,7 @@ function onScriptLoaded() {
 }
 
 function onScriptFailed() {
-  debugLog('Error: Billy Grace Pixel script failed to load from ' + scriptUrl, true);
+  errorLog('Error: Billy Grace Pixel script failed to load from ' + scriptUrl);
   return data.gtmOnFailure();
 }
 
